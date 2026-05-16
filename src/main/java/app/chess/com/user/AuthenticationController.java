@@ -77,7 +77,7 @@ public class AuthenticationController {
 
         return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
-            return ResponseEntity.status(500).body(STR."Registration failed: \{e.getMessage()}");
+            return ResponseEntity.status(500).body(String.format("Registration failed: %s", e.getMessage()));
         }
         // Check if username already exists
     }
