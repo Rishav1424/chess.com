@@ -1,5 +1,6 @@
 package app.chess.com.game;
 
+import app.chess.com.game.dto.GameStatusResponse;
 import app.chess.com.user.UserRepository;
 import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Side;
@@ -39,15 +40,25 @@ public class GameService {
     public static final String MOVE_PREFIX = "GameMoves: ";
     public static final String DRAW_PREFIX = "DrawRequest: ";
     public static final Duration DRAW_OFFER_DURATION = Duration.ofSeconds(30);
-    public static final Duration TOTAL_TIME = Duration.ofMinutes(3);
+    public static final Duration TOTAL_TIME = Duration.ofMinutes(30); //Total duration
     public static final Duration BONUS_PER_MOVE = Duration.ofSeconds(5);
 
     public GameEntity getGame(Long gameId) {
         return gameRepository.findById(gameId).orElseThrow();
     }
 
-    public GameState getGameState(Long gameId) {
-        return gameStateRedisTemplate.opsForValue().get(STATE_PREFIX + gameId);
+    public GameStatusResponse getGameStatus(Long gameId) {
+        GameState state = gameStateRedisTemplate.opsForValue().get(STATE_PREFIX + gameId);
+        List<String> moves = stringRedisTemplate.opsForList().range(MOVE_PREFIX + gameId, 0, -1);
+        assert state != null;
+        Duration timeElapsed = Duration.between(state.getLastMoveTime(), Instant.now());
+        assert moves != null;
+        if(moves.size()%2 == 0){
+            state.setWhiteTime(state.getWhiteTime().minus(timeElapsed));
+        }else{
+            state.setBlackTime(state.getBlackTime().minus(timeElapsed));
+        }
+        return new GameStatusResponse(state.getFen(), state.getWhitePlayer(), state.getBlackPlayer(), state.getWhiteTime(),state.getBlackTime(),moves.toArray(String[]::new));
     }
 
     public Long createGame(String whiteUserName, String blackUserName) {

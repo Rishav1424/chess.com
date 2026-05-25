@@ -3,6 +3,7 @@ package app.chess.com.game;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import app.chess.com.game.dto.GameStatusResponse;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.NoSuchElementException;
@@ -16,8 +17,8 @@ public class RequestController {
     GameService gameService;
 
     @GetMapping("/status")
-    public ResponseEntity<GameState> getGameState(@PathVariable Long gameId) {
-        GameState state = gameService.getGameState(gameId);
+    public ResponseEntity<GameStatusResponse> getGameState(@PathVariable Long gameId) {
+        GameStatusResponse state = gameService.getGameStatus(gameId);
         if(state == null) return ResponseEntity.badRequest().build();
         return ResponseEntity.ok(state);
     }
