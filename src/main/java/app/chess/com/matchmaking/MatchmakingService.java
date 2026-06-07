@@ -44,7 +44,6 @@ public class MatchmakingService {
         List<String> players = redisTemplate.opsForZSet().randomMembers(POOL_KEY, 2);
         List<String> match = matchMaker.getMatch(players);
 
-        assert match != null;
         for (String player : match) {
             redisTemplate.opsForZSet().remove(POOL_KEY, player);
         }
@@ -54,22 +53,25 @@ public class MatchmakingService {
 
     @Scheduled(fixedRate = 10000)
     public void matchPlayer() {
-        List<String> players = extractPlayers();
-        if (players.isEmpty()) return;
+        Long poolSize = redisTemplate.opsForZSet().zCard(POOL_KEY);
+        while((poolSize-=2) >= 0){
+            List<String> players = extractPlayers();
+            if (players.isEmpty()) return;
 
-        String whitePlayer = players.get(0);
-        String blackPlayer = players.get(1);
+            String whitePlayer = players.get(0);
+            String blackPlayer = players.get(1);
 
-        Long gameId = gameService.createGame(whitePlayer, blackPlayer);
+            Long gameId = gameService.createGame(whitePlayer, blackPlayer);
 
-        MatchFoundNotification whiteNotification = new MatchFoundNotification(gameId, blackPlayer, Side.WHITE);
-        MatchFoundNotification blackNotification = new MatchFoundNotification(gameId, whitePlayer, Side.BLACK);
+            MatchFoundNotification whiteNotification = new MatchFoundNotification(gameId, blackPlayer, Side.WHITE);
+            MatchFoundNotification blackNotification = new MatchFoundNotification(gameId, whitePlayer, Side.BLACK);
 
-        log.info("whiteNotification: {}", whiteNotification);
-        log.info("blackNotification: {}", blackNotification);
+            log.info("whiteNotification: {}", whiteNotification);
+            log.info("blackNotification: {}", blackNotification);
 
-        simpMessagingTemplate.convertAndSendToUser(whitePlayer, "/queue/match-making", whiteNotification);
-        simpMessagingTemplate.convertAndSendToUser(blackPlayer, "/queue/match-making", blackNotification);
+            simpMessagingTemplate.convertAndSendToUser(whitePlayer, "/queue/match-making", whiteNotification);
+            simpMessagingTemplate.convertAndSendToUser(blackPlayer, "/queue/match-making", blackNotification);
+        }
     }
 
 }

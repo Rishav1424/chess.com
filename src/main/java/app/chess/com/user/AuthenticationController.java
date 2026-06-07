@@ -1,5 +1,6 @@
 package app.chess.com.user;
 
+import app.chess.com.game.dto.MessageResponse;
 import app.chess.com.security.JwtService;
 import app.chess.com.user.dtos.LoginRequest;
 import app.chess.com.user.dtos.RegisterRequest;
@@ -39,7 +40,7 @@ public class AuthenticationController {
      * @return ResponseEntity containing LoginResponse with the JWT token.
      */
     @PostMapping("/login")
-    public ResponseEntity<String> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<Object> login(@Valid @RequestBody LoginRequest request) {
         try{
 
             // Perform authentication using Spring Security's AuthenticationManager
@@ -55,7 +56,7 @@ public class AuthenticationController {
             // Return the token in the response
             return ResponseEntity.ok(token);
         }catch (Exception e){
-            return ResponseEntity.status(401).body(e.getMessage());
+            return ResponseEntity.status(401).body(new MessageResponse(e.getMessage()));
         }
     }
 
@@ -64,7 +65,7 @@ public class AuthenticationController {
         try{
 
         if (userRepository.findByUsername(request.username()).isPresent()) {
-            return ResponseEntity.badRequest().body("Username already taken!");
+            return ResponseEntity.badRequest().body(new MessageResponse("Username already taken!"));
         }
 
         // Create new user entity
@@ -77,7 +78,7 @@ public class AuthenticationController {
 
         return ResponseEntity.ok().build();
         } catch (RuntimeException e) {
-            return ResponseEntity.status(500).body(String.format("Registration failed: %s", e.getMessage()));
+            return ResponseEntity.status(500).body(new MessageResponse(String.format("Registration failed: %s", e.getMessage())));
         }
         // Check if username already exists
     }

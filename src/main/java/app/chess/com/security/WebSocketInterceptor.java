@@ -32,7 +32,8 @@ public class WebSocketInterceptor implements ChannelInterceptor {
         StompHeaderAccessor accessor =
                 MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-        assert accessor != null;
+        if(accessor == null) throw new IllegalArgumentException("Unable to access STOMP header");
+
         if (Objects.equals(accessor.getCommand(), StompCommand.CONNECT)) {
 
             String authHeader = accessor.getFirstNativeHeader("Authorization");

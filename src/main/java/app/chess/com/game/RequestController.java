@@ -1,5 +1,7 @@
 package app.chess.com.game;
 
+import app.chess.com.game.dto.GameEntityResponse;
+import app.chess.com.game.dto.MessageResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,14 +19,17 @@ public class RequestController {
     GameService gameService;
 
     @GetMapping("/status")
-    public ResponseEntity<GameStatusResponse> getGameState(@PathVariable Long gameId) {
-        GameStatusResponse state = gameService.getGameStatus(gameId);
-        if(state == null) return ResponseEntity.badRequest().build();
-        return ResponseEntity.ok(state);
+    public ResponseEntity<Object> getGameState(@PathVariable Long gameId) {
+        try {
+            GameStatusResponse state = gameService.getGameStatus(gameId);
+            return ResponseEntity.ok(state);
+        }catch (IllegalAccessException e){
+            return ResponseEntity.status(401).body(new MessageResponse(e.getMessage()));
+        }
     }
 
     @GetMapping("/history")
-    public ResponseEntity<GameEntity> getGameHistory(@PathVariable Long gameId) {
+    public ResponseEntity<Object> getGameHistory(@PathVariable Long gameId) {
         try {
             return ResponseEntity.ok(gameService.getGame(gameId));
         } catch (NoSuchElementException e) {

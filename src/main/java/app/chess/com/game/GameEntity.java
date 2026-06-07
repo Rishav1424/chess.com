@@ -8,8 +8,7 @@ import lombok.Data;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
-import java.sql.Timestamp;
+import java.time.Instant;
 
 @Entity
 @AllArgsConstructor
@@ -22,21 +21,21 @@ public class GameEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @JoinColumn
-    @Column(updatable = false, nullable = false)
+    @ManyToOne
+    @JoinColumn(updatable = false, nullable = false)
     private User whitePlayer;
 
-    @JoinColumn
-    @Column(updatable = false, nullable = false)
+    @ManyToOne
+    @JoinColumn(updatable = false, nullable = false)
     private User blackPlayer;
 
     @Column(updatable = false)
     @CreationTimestamp
-    private Timestamp timestamp;
+    private Instant timestamp;
 
     @Column
     @UpdateTimestamp
-    private Timestamp updated;
+    private Instant updated;
 
     @Column
     @Enumerated(EnumType.STRING)

@@ -24,6 +24,7 @@ public class GameLobbyController {
 
     @MessageMapping("/match-making/cancel")
     public void removeFromLobby (Principal user){
+        log.info("User {} left the matchmaking lobby", user.getName());
         matchmakingService.removeFromPool(user);
     }
 
