@@ -133,7 +133,7 @@ public class GameService {
         gameStateRedisTemplate.opsForValue().set(STATE_PREFIX + gameId, gameState);
         stringRedisTemplate.opsForList().rightPush(MOVE_PREFIX + gameId, inputMove);
 
-        Duration remainingDuration = isWhitePlayer ? gameState.getWhiteTime() : gameState.getBlackTime();
+        Duration remainingDuration = isWhitePlayer ? gameState.getBlackTime() : gameState.getWhiteTime();
         Instant timeoutTimestamp = Instant.now().plus(remainingDuration);
         stringRedisTemplate.opsForZSet().add(TIMEOUT_SET_KEY, gameId.toString(), timeoutTimestamp.toEpochMilli());
 
@@ -172,7 +172,7 @@ public class GameService {
         if (moves != null) gameEntity.setMoves(moves.toArray(new String[0]));
         gameRepository.save(gameEntity);
         gameStateRedisTemplate.delete(STATE_PREFIX + gameId);
-        gameStateRedisTemplate.delete(MOVE_PREFIX + gameId);
+        stringRedisTemplate.delete(MOVE_PREFIX + gameId);
         stringRedisTemplate.opsForZSet().remove(TIMEOUT_SET_KEY, gameId.toString());
         simpMessagingTemplate.convertAndSend(String.format("/topic/game/%d/event", gameId), status);
     }

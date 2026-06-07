@@ -17,6 +17,7 @@ import java.util.List;
 public class User implements UserDetails {
 
     @Id
+    @Getter
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -25,6 +26,7 @@ public class User implements UserDetails {
     @Column(unique = true, nullable = false, length = 50)
     private String username;
 
+    @Getter
     @Setter
     @Column(unique = true, nullable = false)
     private String email;
@@ -35,6 +37,7 @@ public class User implements UserDetails {
     private String password; // This will store the hashed password
 
     @CreationTimestamp
+    @Getter
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", nullable = false, updatable = false)
     private Date createdAt;

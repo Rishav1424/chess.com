@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import java.security.Principal;
 
 @Slf4j
-@Service
 @Controller
 public class GameLobbyController {
 

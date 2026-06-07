@@ -1,7 +1,7 @@
 package app.chess.com.user.dtos;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotBlank;
 
 /**
@@ -17,7 +17,7 @@ public record RegisterRequest(
         String email,
 
         @NotBlank(message = "Password is mandatory")
-        @Min(value = 4, message = "Password must be at least 4 characters long")
+        @Size(min = 4, message = "Password must be at least 4 characters long")
         String password
 ) {
 }
