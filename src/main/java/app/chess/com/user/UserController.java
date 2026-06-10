@@ -1,10 +1,11 @@
 package app.chess.com.user;
 
+import app.chess.com.dto.ApiSuccessResponse;
 import app.chess.com.game.GameEntity;
 import app.chess.com.game.GameRepository;
 import app.chess.com.game.GameStatus;
-import app.chess.com.game.dto.GameEntityResponse;
-import app.chess.com.user.dtos.UserStats;
+import app.chess.com.dto.GameEntityResponse;
+import app.chess.com.dto.UserStats;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,7 +26,7 @@ public class UserController {
     GameRepository gameRepository;
 
     @GetMapping("/me/stats")
-    public ResponseEntity<UserStats> getUserStats(Principal user){
+    public ResponseEntity<ApiSuccessResponse<UserStats>> getUserStats(Principal user){
 
         List<GameStatus> whiteWinStatuses = List.of(GameStatus.WON_WHITE_CHECKMATE, GameStatus.WON_WHITE_RESIGNATION, GameStatus.WON_WHITE_TIMEOUT);
         List<GameStatus> blackWinStatuses = List.of(GameStatus.WON_BLACK_CHECKMATE, GameStatus.WON_BLACK_RESIGNATION, GameStatus.WON_BLACK_TIMEOUT);
@@ -38,14 +39,15 @@ public class UserController {
         int drawAsWhite = gameRepository.countByWhitePlayer_UsernameAndStatusIn(user.getName(), drawStatuses).intValue();
         int drawAsBlack = gameRepository.countByBlackPlayer_UsernameAndStatusIn(user.getName(), drawStatuses).intValue();
 
-        return ResponseEntity.ok(new UserStats(winAsWhite, winAsBlack, loseAsWhite, loseAsBlack, drawAsWhite, drawAsBlack));
+        return ResponseEntity.ok(new ApiSuccessResponse<>(new UserStats(winAsWhite, winAsBlack, loseAsWhite, loseAsBlack, drawAsWhite, drawAsBlack)));
     }
 
     @GetMapping("/me/games")
-    public ResponseEntity<List<GameEntityResponse>> getUserGames(Principal user){
+    public ResponseEntity<ApiSuccessResponse<List<GameEntityResponse>>> getUserGames(Principal user){
 
         PageRequest limitRequest = PageRequest.of(0, 10, Sort.by("updated").descending());
         Page<GameEntity> gameEntityPage = gameRepository.findByWhitePlayer_UsernameOrBlackPlayer_Username(user.getName(), user.getName(), limitRequest);
-        return ResponseEntity.ok(gameEntityPage.getContent().stream().map(GameEntityResponse::new).toList());
+        List<GameEntityResponse> response = gameEntityPage.getContent().stream().map(GameEntityResponse::new).toList();
+        return ResponseEntity.ok(new ApiSuccessResponse<>(response));
     }
 }

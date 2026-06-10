@@ -1,7 +1,10 @@
 package app.chess.com.game;
 
-import app.chess.com.game.dto.GameEntityResponse;
-import app.chess.com.game.dto.GameStatusResponse;
+import app.chess.com.exception.GameNotFoundException;
+import app.chess.com.exception.InvalidActionException;
+import app.chess.com.exception.UnauthorizedGameAccessException;
+import app.chess.com.dto.GameEntityResponse;
+import app.chess.com.dto.GameStatusResponse;
 import app.chess.com.user.UserRepository;
 import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Side;
@@ -48,16 +51,16 @@ public class GameService {
     public static final Duration BONUS_PER_MOVE = Duration.ofSeconds(5);
 
     public GameEntityResponse getGame(Long gameId) {
-        GameEntity game = gameRepository.findById(gameId).orElseThrow();
+        GameEntity game = gameRepository.findById(gameId).orElseThrow(() -> new GameNotFoundException(gameId));
         return new GameEntityResponse(game);
     }
 
-    public GameStatusResponse getGameStatus(Long gameId) throws IllegalAccessException {
+    public GameStatusResponse getGameStatus(Long gameId) {
         GameState state = gameStateRedisTemplate.opsForValue().get(STATE_PREFIX + gameId);
-        if (state == null) throw new IllegalAccessException("Game doesn't exist");
+        if (state == null) throw new GameNotFoundException(gameId);
         List<String> moves = stringRedisTemplate.opsForList().range(MOVE_PREFIX + gameId, 0, -1);
         Duration timeElapsed = Duration.between(state.getLastMoveTime(), Instant.now());
-        if(moves == null) throw new IllegalAccessException("Unable to fetch moves");
+        if(moves == null) throw new GameNotFoundException(gameId);
         if (moves.size() % 2 == 0) {
             state.setWhiteTime(state.getWhiteTime().minus(timeElapsed));
         } else {
@@ -81,9 +84,9 @@ public class GameService {
         return id;
     }
 
-    public void makeMove(Long gameId, String inputMove, String playerName) throws IllegalAccessException {
+    public void makeMove(Long gameId, String inputMove, String playerName) {
         GameState gameState = gameStateRedisTemplate.opsForValue().get(STATE_PREFIX + gameId);
-        if (gameState == null) throw new IllegalAccessException("Not a valid game");
+        if (gameState == null) throw new GameNotFoundException(gameId);
         boolean isWhitePlayer = playerName.equals(gameState.getWhitePlayer());
         boolean isBlackPlayer = playerName.equals(gameState.getBlackPlayer());
 
@@ -93,13 +96,13 @@ public class GameService {
         board.loadFromFen(gameState.getFen());
 
         if (!isBlackPlayer && !isWhitePlayer) {
-            throw new IllegalAccessException("You are not part of this game");
+            throw new UnauthorizedGameAccessException();
         }
         if (board.getSideToMove().equals(Side.WHITE) && !isWhitePlayer) {
-            throw new IllegalAccessException("Not your turn");
+            throw new InvalidActionException("Not your turn");
         }
         if (board.getSideToMove().equals(Side.BLACK) && !isBlackPlayer) {
-            throw new IllegalAccessException("Not your turn");
+            throw new InvalidActionException("Not your turn");
         }
 
         Move move = new Move(inputMove, board.getSideToMove());
@@ -108,7 +111,7 @@ public class GameService {
         boolean success = board.doMove(move, true);
         log.info("Changed state to {} and side to {} successfully {}", board.getFen(), board.getSideToMove(), success);
         if (!success) {
-            throw new IllegalAccessException("Invalid Move");
+            throw new InvalidActionException("Invalid Move:" + inputMove);
         }
 
         gameState.setFen(board.getFen());
@@ -174,23 +177,23 @@ public class GameService {
         gameStateRedisTemplate.delete(STATE_PREFIX + gameId);
         stringRedisTemplate.delete(MOVE_PREFIX + gameId);
         stringRedisTemplate.opsForZSet().remove(TIMEOUT_SET_KEY, gameId.toString());
-        simpMessagingTemplate.convertAndSend(String.format("/topic/game/%d/event", gameId), status);
+        simpMessagingTemplate.convertAndSend(String.format("/topic/game/%d/event", gameId), status.toString());
     }
 
-    public void handleResignation(Long gameId, String playerName) throws IllegalAccessException {
+    public void handleResignation(Long gameId, String playerName) {
         GameState gameState = gameStateRedisTemplate.opsForValue().get(STATE_PREFIX + gameId);
-        if (gameState == null) throw new IllegalAccessException("Not a valid Game");
+        if (gameState == null) throw new GameNotFoundException(gameId);
 
         if (playerName.equals(gameState.getWhitePlayer())) {
             handleGameOver(gameId, GameStatus.WON_BLACK_RESIGNATION);
         } else if (playerName.equals(gameState.getBlackPlayer())) {
             handleGameOver(gameId, GameStatus.WON_WHITE_RESIGNATION);
-        } else throw new IllegalAccessException("You are not part of this game");
+        } else throw new UnauthorizedGameAccessException();
     }
 
-    public void handleDrawOffer(Long gameId, String playerName) throws IllegalAccessException {
+    public void handleDrawOffer(Long gameId, String playerName) {
         GameState gameState = gameStateRedisTemplate.opsForValue().get(STATE_PREFIX + gameId);
-        if (gameState == null) throw new IllegalAccessException("Not a valid game");
+        if (gameState == null) throw new GameNotFoundException(gameId);
 
         if (playerName.equals(stringRedisTemplate.opsForValue().get(DRAW_PREFIX + gameId))) {
             handleGameOver(gameId, GameStatus.DRAW_AGREEMENT);
@@ -198,15 +201,18 @@ public class GameService {
         }
 
         String opponent;
+        String event;
         if (playerName.equals(gameState.getWhitePlayer())) {
             opponent = gameState.getBlackPlayer();
+            event = "WHITE_DRAW_REQUEST";
         } else if (playerName.equals(gameState.getBlackPlayer())) {
             opponent = gameState.getWhitePlayer();
+            event = "BLACK_DRAW_REQUEST";
         } else {
-            throw new IllegalAccessException("You are not part of this game");
+            throw new UnauthorizedGameAccessException();
         }
         stringRedisTemplate.opsForValue().set(DRAW_PREFIX + gameId, opponent, DRAW_OFFER_DURATION);
-        simpMessagingTemplate.convertAndSendToUser(opponent, String.format("/queue/game/%d/draw-offer", gameId), "Draw offer received");
+        simpMessagingTemplate.convertAndSendToUser(opponent, String.format("/queue/game/%d/event", gameId), event);
     }
 
     @Scheduled(fixedRate = 1000) // Poll Redis once per second

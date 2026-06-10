@@ -1,4 +1,4 @@
-package app.chess.com.user.dtos;
+package app.chess.com.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;

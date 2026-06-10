@@ -1,4 +1,4 @@
-package app.chess.com.matchmaking.dto;
+package app.chess.com.dto;
 
 import com.github.bhlangonijr.chesslib.Side;
 

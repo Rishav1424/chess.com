@@ -1,11 +1,14 @@
 package app.chess.com.user;
 
-import app.chess.com.game.dto.MessageResponse;
+import app.chess.com.dto.ApiSuccessResponse;
 import app.chess.com.security.JwtService;
-import app.chess.com.user.dtos.LoginRequest;
-import app.chess.com.user.dtos.RegisterRequest;
+import app.chess.com.dto.AuthResponse;
+import app.chess.com.dto.LoginRequest;
+import app.chess.com.dto.RegisterRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,53 +36,38 @@ public class AuthenticationController {
     @Autowired
     PasswordEncoder passwordEncoder; // Optional: For registration
 
-    /**
-     * Handles the login request. Authenticates the user and returns a JWT token
-     * if successful.
-     * @param request The LoginRequest DTO containing username and password.
-     * @return ResponseEntity containing LoginResponse with the JWT token.
-     */
     @PostMapping("/login")
-    public ResponseEntity<Object> login(@Valid @RequestBody LoginRequest request) {
-        try{
+    public ResponseEntity<ApiSuccessResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
 
-            // Perform authentication using Spring Security's AuthenticationManager
-            // This will use our DatabaseUserDetailsService and PasswordEncoder
-
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.username(), request.password())
-            );
-            // If authentication is successful, the principal is our UserDetails object
-            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-            // Generate the JWT token
-            String token = jwtService.generateToken(userDetails);
-            // Return the token in the response
-            return ResponseEntity.ok(token);
-        }catch (Exception e){
-            return ResponseEntity.status(401).body(new MessageResponse(e.getMessage()));
-        }
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.username(), request.password())
+        );
+        // If authentication is successful, the principal is our UserDetails object
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        // Generate the JWT token
+        String token = jwtService.generateToken(userDetails);
+        // Return the token in the response
+        return ResponseEntity.ok(new ApiSuccessResponse<>(new AuthResponse(token), "Login Success"));
     }
 
     @PostMapping("/register")
-    public ResponseEntity<Object> register(@Valid @RequestBody RegisterRequest request) {
-        try{
-
+    public ResponseEntity<ApiSuccessResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
         if (userRepository.findByUsername(request.username()).isPresent()) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Username already taken!"));
+            throw new DataIntegrityViolationException("Username is already taken.");
+        }
+        if (userRepository.findByEmail(request.email()).isPresent()) {
+            throw new DataIntegrityViolationException("Email address is already registered.");
         }
 
         // Create new user entity
         User newUser = new User();
         newUser.setUsername(request.username());
-        newUser.setEmail(request.email()); // Assuming RegisterRequest has email
+        newUser.setEmail(request.email());
         newUser.setPassword(passwordEncoder.encode(request.password()));
-
         userRepository.save(newUser);
 
-        return ResponseEntity.ok().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(500).body(new MessageResponse(String.format("Registration failed: %s", e.getMessage())));
-        }
-        // Check if username already exists
+        String token = jwtService.generateToken(newUser);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiSuccessResponse<>(new AuthResponse(token), "Registration success"));
     }
 }

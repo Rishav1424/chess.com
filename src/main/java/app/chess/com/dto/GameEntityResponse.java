@@ -1,4 +1,4 @@
-package app.chess.com.game.dto;
+package app.chess.com.dto;
 
 import app.chess.com.game.GameEntity;
 import app.chess.com.game.GameStatus;

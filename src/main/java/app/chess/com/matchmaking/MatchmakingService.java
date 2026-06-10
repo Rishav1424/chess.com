@@ -1,7 +1,7 @@
 package app.chess.com.matchmaking;
 
 import app.chess.com.game.GameService;
-import app.chess.com.matchmaking.dto.MatchFoundNotification;
+import app.chess.com.dto.MatchFoundNotification;
 import com.github.bhlangonijr.chesslib.Side;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,7 +10,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import java.security.Principal;
-import java.sql.Time;
 import java.time.Instant;
 import java.util.List;
 
