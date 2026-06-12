@@ -212,7 +212,7 @@ public class GameService {
             throw new UnauthorizedGameAccessException();
         }
         stringRedisTemplate.opsForValue().set(DRAW_PREFIX + gameId, opponent, DRAW_OFFER_DURATION);
-        simpMessagingTemplate.convertAndSendToUser(opponent, String.format("/queue/game/%d/event", gameId), event);
+        simpMessagingTemplate.convertAndSend(String.format("/topic/game/%d/event", gameId), event);
     }
 
     @Scheduled(fixedRate = 1000) // Poll Redis once per second
