@@ -2,7 +2,8 @@ package app.chess.com.matchmaking;
 
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 public class SerialMatchMaker<T> implements MatchMaker<T> {

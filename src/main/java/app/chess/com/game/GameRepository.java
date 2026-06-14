@@ -9,8 +9,12 @@ import java.util.List;
 
 @Repository
 public interface GameRepository extends JpaRepository<GameEntity, Long> {
+    long countByWhitePlayer_UsernameOrBlackPlayer_Username(String white, String black);
+
     Page<GameEntity> findByWhitePlayer_UsernameOrBlackPlayer_Username(String white, String black, Pageable page);
+
     Long countByWhitePlayer_UsernameAndStatusIn(String username, List<GameStatus> status);
+
     Long countByBlackPlayer_UsernameAndStatusIn(String username, List<GameStatus> status);
 
 }

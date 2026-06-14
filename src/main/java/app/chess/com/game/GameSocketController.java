@@ -15,22 +15,28 @@ public class GameSocketController {
     @Autowired
     GameService gameService;
 
-    @MessageMapping("game/{gameId}/move")
+    @MessageMapping("games/{gameId}/move")
     public void makeMove(@DestinationVariable Long gameId, String move, Principal principal) {
-        log.info("Received move: {} from {} by {}", move, gameId, principal.getName());
         gameService.makeMove(gameId, move, principal.getName());
     }
 
-    @MessageMapping("game/{gameId}/action/resign")
+    @MessageMapping("games/{gameId}/resign")
     public void resignGame(@DestinationVariable Long gameId, Principal principal) {
-        log.info("Received resign request from {} for game {}", principal.getName(), gameId);
-        gameService.handleResignation(gameId, principal.getName());
-
+        gameService.resign(gameId, principal.getName());
     }
 
-    @MessageMapping("game/{gameId}/action/draw")
-    public void drawRequest(@DestinationVariable Long gameId, Principal principal) {
-        log.info("Received draw offer from {} for game {}", principal.getName(), gameId);
-        gameService.handleDrawOffer(gameId, principal.getName());
+    @MessageMapping("games/{gameId}/draw/offer")
+    public void offerDraw(@DestinationVariable Long gameId, Principal principal) {
+        gameService.offerDraw(gameId, principal.getName());
+    }
+
+    @MessageMapping("games/{gameId}/draw/accept")
+    public void acceptDraw(@DestinationVariable Long gameId, Principal principal) {
+        gameService.acceptDraw(gameId, principal.getName());
+    }
+
+    @MessageMapping("games/{gameId}/draw/decline")
+    public void declineDraw(@DestinationVariable Long gameId, Principal principal) {
+        gameService.declineDraw(gameId, principal.getName());
     }
 }

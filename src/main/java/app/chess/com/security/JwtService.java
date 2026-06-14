@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.time.Instant;
 import java.util.Date;
 import java.util.function.Function;
 
@@ -67,16 +68,8 @@ public class JwtService {
      * @param expiration  The expiration time in milliseconds.
      * @return The generated JWT token string.
      */
-    private String buildToken(
-            UserDetails userDetails,
-            long expiration) {
-        return Jwts
-                .builder()
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSignKey(), SignatureAlgorithm.HS256)
-                .compact();
+    private String buildToken(UserDetails userDetails, long expiration) {
+        return Jwts.builder().setSubject(userDetails.getUsername()).setIssuedAt(new Date(System.currentTimeMillis())).setExpiration(new Date(System.currentTimeMillis() + expiration)).signWith(getSignKey(), SignatureAlgorithm.HS256).compact();
     }
 
     /**
@@ -119,12 +112,17 @@ public class JwtService {
      * @return The Claims object containing all data.
      */
     private Claims extractAllClaims(String token) {
-        return Jwts
-                .parserBuilder()
-                .setSigningKey(getSignKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        return Jwts.parserBuilder().setSigningKey(getSignKey()).build().parseClaimsJws(token).getBody();
+    }
+
+    /**
+     * Return the expiration instant from a JWT token.
+     *
+     * @param token The JWT token.
+     * @return The expiration instant.
+     */
+    public Instant getExpiration(String token) {
+        return extractExpiration(token).toInstant();
     }
 
     /**

@@ -1,7 +1,7 @@
 package app.chess.com.matchmaking;
 
-import app.chess.com.game.GameService;
 import app.chess.com.dto.MatchFoundNotification;
+import app.chess.com.game.GameService;
 import com.github.bhlangonijr.chesslib.Side;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +9,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
 import java.security.Principal;
 import java.time.Instant;
 import java.util.List;
@@ -17,19 +18,15 @@ import java.util.List;
 @Service
 public class MatchmakingService {
 
+    private static final String POOL_KEY = "MatchmakingPool";
     @Autowired
     GameService gameService;
-
-    @Autowired
-    private MatchMaker<String> matchMaker;
-
-    @Autowired
-    private SimpMessagingTemplate simpMessagingTemplate;
-
     @Autowired
     RedisTemplate<String, String> redisTemplate;
-
-    private static final String POOL_KEY = "MatchmakingPool";
+    @Autowired
+    private MatchMaker<String> matchMaker;
+    @Autowired
+    private SimpMessagingTemplate simpMessagingTemplate;
 
     public void addToPool(Principal user) {
         redisTemplate.opsForZSet().add(POOL_KEY, user.getName(), Instant.now().getEpochSecond());
@@ -53,7 +50,7 @@ public class MatchmakingService {
     @Scheduled(fixedRate = 10000)
     public void matchPlayer() {
         Long poolSize = redisTemplate.opsForZSet().zCard(POOL_KEY);
-        while((poolSize-=2) >= 0){
+        while ((poolSize -= 2) >= 0) {
             List<String> players = extractPlayers();
             if (players.isEmpty()) return;
 

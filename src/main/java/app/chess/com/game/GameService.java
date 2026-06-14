@@ -1,46 +1,30 @@
 package app.chess.com.game;
 
-import app.chess.com.exception.GameNotFoundException;
-import app.chess.com.exception.InvalidActionException;
-import app.chess.com.exception.UnauthorizedGameAccessException;
 import app.chess.com.dto.GameEntityResponse;
 import app.chess.com.dto.GameStatusResponse;
+import app.chess.com.exception.GameNotFoundException;
+import app.chess.com.exception.GameNotLiveException;
+import app.chess.com.exception.InvalidActionException;
+import app.chess.com.exception.UnauthorizedGameAccessException;
 import app.chess.com.user.UserRepository;
 import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Side;
 import com.github.bhlangonijr.chesslib.move.Move;
+import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.jetbrains.annotations.NotNull;
-import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.IllformedLocaleException;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Slf4j
 @Service
 public class GameService {
-
-    @Autowired
-    GameRepository gameRepository;
-
-    @Autowired
-    UserRepository userRepository;
-
-    @Autowired
-    RedisTemplate<String, GameState> gameStateRedisTemplate;
-
-    @Autowired
-    RedisTemplate<String, String> stringRedisTemplate;
-
-    @Autowired
-    SimpMessagingTemplate simpMessagingTemplate;
 
     public static final String STATE_PREFIX = "GameSate: ";
     public static final String MOVE_PREFIX = "GameMoves: ";
@@ -49,6 +33,16 @@ public class GameService {
     public static final Duration DRAW_OFFER_DURATION = Duration.ofSeconds(30);
     public static final Duration TOTAL_TIME = Duration.ofMinutes(3); //Total duration
     public static final Duration BONUS_PER_MOVE = Duration.ofSeconds(5);
+    @Autowired
+    GameRepository gameRepository;
+    @Autowired
+    UserRepository userRepository;
+    @Autowired
+    RedisTemplate<String, GameState> gameStateRedisTemplate;
+    @Autowired
+    RedisTemplate<String, String> stringRedisTemplate;
+    @Autowired
+    SimpMessagingTemplate simpMessagingTemplate;
 
     public GameEntityResponse getGame(Long gameId) {
         GameEntity game = gameRepository.findById(gameId).orElseThrow(() -> new GameNotFoundException(gameId));
@@ -57,16 +51,36 @@ public class GameService {
 
     public GameStatusResponse getGameStatus(Long gameId) {
         GameState state = gameStateRedisTemplate.opsForValue().get(STATE_PREFIX + gameId);
-        if (state == null) throw new GameNotFoundException(gameId);
-        List<String> moves = stringRedisTemplate.opsForList().range(MOVE_PREFIX + gameId, 0, -1);
-        Duration timeElapsed = Duration.between(state.getLastMoveTime(), Instant.now());
-        if(moves == null) throw new GameNotFoundException(gameId);
-        if (moves.size() % 2 == 0) {
-            state.setWhiteTime(state.getWhiteTime().minus(timeElapsed));
-        } else {
-            state.setBlackTime(state.getBlackTime().minus(timeElapsed));
+        if (state == null) {
+            // Distinguish "never existed" from "ended" using the Postgres record
+            gameRepository.findById(gameId).orElseThrow(() -> new GameNotFoundException(gameId));
+            throw new GameNotLiveException(gameId);
         }
-        return new GameStatusResponse(state.getFen(), state.getWhitePlayer(), state.getBlackPlayer(), state.getWhiteTime(), state.getBlackTime(), moves.toArray(String[]::new));
+
+        List<String> moves = stringRedisTemplate.opsForList().range(MOVE_PREFIX + gameId, 0, -1);
+        if (moves == null) throw new GameNotLiveException(gameId);
+
+        Duration timeElapsed = Duration.between(state.getLastMoveTime(), Instant.now());
+        if (moves.size() % 2 == 0) {
+            Duration adjusted = state.getWhiteTime().minus(timeElapsed);
+            state.setWhiteTime(adjusted.isNegative() ? Duration.ZERO : adjusted);
+        } else {
+            Duration adjusted = state.getBlackTime().minus(timeElapsed);
+            state.setBlackTime(adjusted.isNegative() ? Duration.ZERO : adjusted);
+        }
+
+        String pendingDrawOffer = resolvePendingDrawOffer(gameId, state);
+
+        return new GameStatusResponse(state.getFen(), state.getWhitePlayer(), state.getBlackPlayer(), state.getWhiteTime(), state.getBlackTime(), moves.toArray(String[]::new), pendingDrawOffer);
+    }
+
+    private String resolvePendingDrawOffer(Long gameId, GameState state) {
+        String offeredTo = stringRedisTemplate.opsForValue().get(DRAW_PREFIX + gameId);
+        if (offeredTo == null) return null;
+        // DRAW_PREFIX stores the *recipient* — the offer came from the other side
+        if (offeredTo.equals(state.getBlackPlayer())) return "WHITE";
+        if (offeredTo.equals(state.getWhitePlayer())) return "BLACK";
+        return null;
     }
 
     public Long createGame(String whiteUserName, String blackUserName) {
@@ -140,7 +154,10 @@ public class GameService {
         Instant timeoutTimestamp = Instant.now().plus(remainingDuration);
         stringRedisTemplate.opsForZSet().add(TIMEOUT_SET_KEY, gameId.toString(), timeoutTimestamp.toEpochMilli());
 
-        simpMessagingTemplate.convertAndSend(String.format("/topic/game/%d/move", gameId), move.toString());
+        Map<String, Object> moveBroadcast = new LinkedHashMap<>();
+        moveBroadcast.put("move", move.toString());
+        moveBroadcast.put("fen", board.getFen());
+        simpMessagingTemplate.convertAndSend(String.format("/topic/games/%d/moves", gameId), moveBroadcast);
 
         checkGameOver(gameId, board);
     }
@@ -177,10 +194,10 @@ public class GameService {
         gameStateRedisTemplate.delete(STATE_PREFIX + gameId);
         stringRedisTemplate.delete(MOVE_PREFIX + gameId);
         stringRedisTemplate.opsForZSet().remove(TIMEOUT_SET_KEY, gameId.toString());
-        simpMessagingTemplate.convertAndSend(String.format("/topic/game/%d/event", gameId), status.toString());
+        publishEvent(gameId, "GAME_OVER", Map.of("status", status.toString()));
     }
 
-    public void handleResignation(Long gameId, String playerName) {
+    public void resign(Long gameId, String playerName) {
         GameState gameState = gameStateRedisTemplate.opsForValue().get(STATE_PREFIX + gameId);
         if (gameState == null) throw new GameNotFoundException(gameId);
 
@@ -191,28 +208,60 @@ public class GameService {
         } else throw new UnauthorizedGameAccessException();
     }
 
-    public void handleDrawOffer(Long gameId, String playerName) {
-        GameState gameState = gameStateRedisTemplate.opsForValue().get(STATE_PREFIX + gameId);
-        if (gameState == null) throw new GameNotFoundException(gameId);
+    public void offerDraw(Long gameId, String playerName) {
+        GameState gameState = requireGameState(gameId);
+        String side = resolveSide(gameState, playerName);
 
-        if (playerName.equals(stringRedisTemplate.opsForValue().get(DRAW_PREFIX + gameId))) {
-            handleGameOver(gameId, GameStatus.DRAW_AGREEMENT);
-            return;
+        String recipient = side.equals("WHITE") ? gameState.getBlackPlayer() : gameState.getWhitePlayer();
+        stringRedisTemplate.opsForValue().set(DRAW_PREFIX + gameId, recipient, DRAW_OFFER_DURATION);
+
+        publishEvent(gameId, "DRAW_OFFERED", Map.of("by", side));
+    }
+
+    public void acceptDraw(Long gameId, String playerName) {
+        GameState gameState = requireGameState(gameId);
+        resolveSide(gameState, playerName); // validates participant
+
+        String pendingRecipient = stringRedisTemplate.opsForValue().get(DRAW_PREFIX + gameId);
+        if (pendingRecipient == null || !pendingRecipient.equals(playerName)) {
+            throw new InvalidActionException("No pending draw offer to accept");
         }
 
-        String opponent;
-        String event;
-        if (playerName.equals(gameState.getWhitePlayer())) {
-            opponent = gameState.getBlackPlayer();
-            event = "WHITE_DRAW_REQUEST";
-        } else if (playerName.equals(gameState.getBlackPlayer())) {
-            opponent = gameState.getWhitePlayer();
-            event = "BLACK_DRAW_REQUEST";
-        } else {
-            throw new UnauthorizedGameAccessException();
+        stringRedisTemplate.delete(DRAW_PREFIX + gameId);
+        handleGameOver(gameId, GameStatus.DRAW_AGREEMENT);
+    }
+
+    public void declineDraw(Long gameId, String playerName) {
+        GameState gameState = requireGameState(gameId);
+        String side = resolveSide(gameState, playerName);
+
+        String pendingRecipient = stringRedisTemplate.opsForValue().get(DRAW_PREFIX + gameId);
+        if (pendingRecipient == null || !pendingRecipient.equals(playerName)) {
+            throw new InvalidActionException("No pending draw offer to decline");
         }
-        stringRedisTemplate.opsForValue().set(DRAW_PREFIX + gameId, opponent, DRAW_OFFER_DURATION);
-        simpMessagingTemplate.convertAndSend(String.format("/topic/game/%d/event", gameId), event);
+
+        stringRedisTemplate.delete(DRAW_PREFIX + gameId);
+        publishEvent(gameId, "DRAW_DECLINED", Map.of("by", side));
+    }
+
+    private GameState requireGameState(Long gameId) {
+        GameState state = gameStateRedisTemplate.opsForValue().get(STATE_PREFIX + gameId);
+        if (state == null) throw new GameNotFoundException(gameId);
+        return state;
+    }
+
+    private String resolveSide(GameState gameState, String playerName) {
+        if (playerName.equals(gameState.getWhitePlayer())) return "WHITE";
+        if (playerName.equals(gameState.getBlackPlayer())) return "BLACK";
+        throw new UnauthorizedGameAccessException();
+    }
+
+    private void publishEvent(Long gameId, String type, Map<String, Object> fields) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", type);
+        payload.putAll(fields);
+        payload.put("timestamp", Instant.now().toString());
+        simpMessagingTemplate.convertAndSend(String.format("/topic/games/%d/events", gameId), payload);
     }
 
     @Scheduled(fixedRate = 1000) // Poll Redis once per second
@@ -221,7 +270,7 @@ public class GameService {
 
         Set<String> timedOutGames = stringRedisTemplate.opsForZSet().rangeByScore(TIMEOUT_SET_KEY, 0, now.toEpochMilli());
 
-        if(timedOutGames == null) throw new IllformedLocaleException("Unable to fetch timedOut games");
+        if (timedOutGames == null) throw new IllformedLocaleException("Unable to fetch timedOut games");
 
         for (String gameIdStr : timedOutGames) {
             Long gameId = Long.parseLong(gameIdStr);
@@ -239,4 +288,5 @@ public class GameService {
         GameStatus result = isWhiteTurn ? GameStatus.WON_BLACK_TIMEOUT : GameStatus.WON_WHITE_TIMEOUT;
         handleGameOver(gameId, result);
     }
+
 }

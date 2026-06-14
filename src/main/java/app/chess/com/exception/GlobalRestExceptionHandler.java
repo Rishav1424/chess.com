@@ -9,8 +9,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.util.stream.Collectors;
+import java.util.List;
 
 @RestControllerAdvice
 public class GlobalRestExceptionHandler {
@@ -22,7 +21,7 @@ public class GlobalRestExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiErrorResponse> handleAuth(AuthenticationException e) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiErrorResponse( "AUTHENTICATION_ERROR",e.getMessage()));
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiErrorResponse("AUTHENTICATION_ERROR", e.getMessage()));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
@@ -32,16 +31,13 @@ public class GlobalRestExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleConflict(DataIntegrityViolationException e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse("DATA_INTEGRITY_ERROR",e.getMessage()));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiErrorResponse("CONFLICT", e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException e) {
-        String message = e.getBindingResult().getFieldErrors().stream()
-                .map(f -> f.getField() + ": " + f.getDefaultMessage())
-                .collect(Collectors.joining("; "));
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiErrorResponse("INVALID_REQUEST_ERROR", message));
+        List<ApiErrorResponse.FieldError> details = e.getBindingResult().getFieldErrors().stream().map(f -> new ApiErrorResponse.FieldError(f.getField(), f.getDefaultMessage())).toList();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiErrorResponse("VALIDATION_ERROR", "Request validation failed.", details));
     }
 
     @ExceptionHandler(RuntimeException.class)

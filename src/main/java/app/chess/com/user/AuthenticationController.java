@@ -1,10 +1,7 @@
 package app.chess.com.user;
 
-import app.chess.com.dto.ApiSuccessResponse;
+import app.chess.com.dto.*;
 import app.chess.com.security.JwtService;
-import app.chess.com.dto.AuthResponse;
-import app.chess.com.dto.LoginRequest;
-import app.chess.com.dto.RegisterRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -13,7 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
  * Controller handling user authentication (login) and potentially registration.
  */
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 public class AuthenticationController {
 
     @Autowired
@@ -38,16 +34,12 @@ public class AuthenticationController {
 
     @PostMapping("/login")
     public ResponseEntity<ApiSuccessResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
+        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+        User user = (User) authentication.getPrincipal();
+        String token = jwtService.generateToken(user);
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.username(), request.password())
-        );
-        // If authentication is successful, the principal is our UserDetails object
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        // Generate the JWT token
-        String token = jwtService.generateToken(userDetails);
-        // Return the token in the response
-        return ResponseEntity.ok(new ApiSuccessResponse<>(new AuthResponse(token), "Login Success"));
+        AuthResponse body = new AuthResponse(token, "Bearer", jwtService.getExpiration(token), new UserProfileResponse(user.getId(), user.getUsername(), user.getEmail()));
+        return ResponseEntity.ok(new ApiSuccessResponse<>(body));
     }
 
     @PostMapping("/register")
@@ -59,7 +51,6 @@ public class AuthenticationController {
             throw new DataIntegrityViolationException("Email address is already registered.");
         }
 
-        // Create new user entity
         User newUser = new User();
         newUser.setUsername(request.username());
         newUser.setEmail(request.email());
@@ -67,7 +58,7 @@ public class AuthenticationController {
         userRepository.save(newUser);
 
         String token = jwtService.generateToken(newUser);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiSuccessResponse<>(new AuthResponse(token), "Registration success"));
+        AuthResponse body = new AuthResponse(token, "Bearer", jwtService.getExpiration(token), new UserProfileResponse(newUser.getId(), newUser.getUsername(), newUser.getEmail()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ApiSuccessResponse<>(body));
     }
 }
