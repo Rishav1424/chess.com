@@ -157,6 +157,7 @@ public class GameService {
         Map<String, Object> moveBroadcast = new LinkedHashMap<>();
         moveBroadcast.put("move", move.toString());
         moveBroadcast.put("fen", board.getFen());
+        moveBroadcast.put("timestamp", Instant.now());
         simpMessagingTemplate.convertAndSend(String.format("/topic/games/%d/moves", gameId), moveBroadcast);
 
         checkGameOver(gameId, board);
@@ -270,7 +271,10 @@ public class GameService {
 
         Set<String> timedOutGames = stringRedisTemplate.opsForZSet().rangeByScore(TIMEOUT_SET_KEY, 0, now.toEpochMilli());
 
-        if (timedOutGames == null) throw new IllformedLocaleException("Unable to fetch timedOut games");
+        if (timedOutGames == null) {
+            log.error("Redis timedOutGames returned null");
+            return;
+        }
 
         for (String gameIdStr : timedOutGames) {
             Long gameId = Long.parseLong(gameIdStr);

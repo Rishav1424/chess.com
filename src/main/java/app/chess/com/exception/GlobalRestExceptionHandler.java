@@ -42,7 +42,7 @@ public class GlobalRestExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ApiErrorResponse> handleUnexpectedError(RuntimeException e) {
-        return ResponseEntity.internalServerError().build();
+        return ResponseEntity.internalServerError().body(new ApiErrorResponse("INTERNAL_ERROR", "An unexpected error occurred."));
     }
 
 }

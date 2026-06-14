@@ -8,17 +8,17 @@ It supersedes `API.md`. Where it differs from the current implementation, the
 
 ## 1. Conventions
 
-| Aspect | Rule |
-|---|---|
-| Base REST URL | `/api/v1` |
-| Base WebSocket URL | `/ws` (SockJS) |
-| JSON field casing | `camelCase` |
-| Timestamps | ISO-8601 UTC, e.g. `2025-06-11T10:00:00Z` |
-| Durations | ISO-8601 duration, e.g. `PT2M45S` |
-| Moves | UCI notation, e.g. `e2e4`, `e1g1`, `e7e8q` |
-| Auth (REST) | `Authorization: Bearer <jwt>` header |
-| Auth (WS) | `Authorization: Bearer <jwt>` in the STOMP `CONNECT` frame's native headers |
-| Resource naming | Plural collections: `/games`, `/users` |
+| Aspect             | Rule                                                                        |
+|--------------------|-----------------------------------------------------------------------------|
+| Base REST URL      | `/api/v1`                                                                   |
+| Base WebSocket URL | `/ws` (SockJS)                                                              |
+| JSON field casing  | `camelCase`                                                                 |
+| Timestamps         | ISO-8601 UTC, e.g. `2025-06-11T10:00:00Z`                                   |
+| Durations          | ISO-8601 duration, e.g. `PT2M45S`                                           |
+| Moves              | UCI notation, e.g. `e2e4`, `e1g1`, `e7e8q`                                  |
+| Auth (REST)        | `Authorization: Bearer <jwt>` header                                        |
+| Auth (WS)          | `Authorization: Bearer <jwt>` in the STOMP `CONNECT` frame's native headers |
+| Resource naming    | Plural collections: `/games`, `/users`                                      |
 
 ---
 
@@ -75,17 +75,17 @@ without a second response shape for validation specifically.
 
 ## 3. Error Code Catalog
 
-| Code | HTTP Status | Meaning |
-|---|---|---|
-| `VALIDATION_ERROR` | 400 | Request body failed bean validation |
-| `INVALID_ACTION` | 400 | Action not legal in the current game state (wrong turn, illegal move, game already over) |
-| `AUTHENTICATION_ERROR` | 401 | Missing, malformed, or expired token; bad credentials |
-| `AUTHORIZATION_ERROR` | 403 | Authenticated, but not permitted to perform this action |
-| `GAME_NOT_FOUND` | 404 | No game record exists with this ID |
-| `USER_NOT_FOUND` | 404 | No user exists with this ID/username |
-| `CONFLICT` | 409 | Unique constraint violated (username/email taken) |
-| `GAME_NOT_LIVE` | 410 | Game existed but has ended — its live state has been cleared; fetch `GET /games/{id}` for the final record |
-| `INTERNAL_ERROR` | 500 | Unexpected server error |
+| Code                   | HTTP Status  | Meaning                                                                                                    |
+|------------------------|--------------|------------------------------------------------------------------------------------------------------------|
+| `VALIDATION_ERROR`     | 400          | Request body failed bean validation                                                                        |
+| `INVALID_ACTION`       | 400          | Action not legal in the current game state (wrong turn, illegal move, game already over)                   |
+| `AUTHENTICATION_ERROR` | 401          | Missing, malformed, or expired token; bad credentials                                                      |
+| `AUTHORIZATION_ERROR`  | 403          | Authenticated, but not permitted to perform this action                                                    |
+| `GAME_NOT_FOUND`       | 404          | No game record exists with this ID                                                                         |
+| `USER_NOT_FOUND`       | 404          | No user exists with this ID/username                                                                       |
+| `CONFLICT`             | 409          | Unique constraint violated (username/email taken)                                                          |
+| `GAME_NOT_LIVE`        | 410          | Game existed but has ended — its live state has been cleared; fetch `GET /games/{id}` for the final record |
+| `INTERNAL_ERROR`       | 500          | Unexpected server error                                                                                    |
 
 `410 Gone` for `GAME_NOT_LIVE` is deliberate: it's a different condition from
 `404 GAME_NOT_FOUND`. A spectator polling `/games/{id}/live` after the game ends
@@ -105,7 +105,7 @@ than an ambiguous 404 that's indistinguishable from "this game never existed."
 {
   "username": "player1",
   "email": "player1@example.com",
-  "password": "securepass"
+  "password": "secure pass"
 }
 ```
 - `username`: required, unique, 3–50 chars
@@ -139,7 +139,7 @@ than an ambiguous 404 that's indistinguishable from "this game never existed."
 
 **Request**
 ```json
-{ "username": "player1", "password": "securepass" }
+{ "username": "player1", "password": "secure pass" }
 ```
 
 **Response — `200 OK`** — same shape as register's `data`.
@@ -159,8 +159,7 @@ than an ambiguous 404 that's indistinguishable from "this game never existed."
   "data": {
     "id": 17,
     "username": "player1",
-    "email": "player1@example.com",
-    "createdAt": "2025-01-04T08:30:00Z"
+    "email": "player1@example.com"
   }
 }
 ```
@@ -244,7 +243,7 @@ right tradeoff.
 
 **Auth:** Required (any authenticated user — spectator access is intentional, see Migration Notes)
 
-**Description:** The durable game record from PostgreSQL. Valid for both
+**Description:** The durable game record from Postgres. Valid for both
 ongoing and finished games.
 
 **Response — `200 OK`**
@@ -319,15 +318,15 @@ Connections with a missing, malformed, or expired token are rejected at
 
 ### 5.2 Client → Server Destinations
 
-| Destination | Payload | Description |
-|---|---|---|
-| `/app/matchmaking/join` | none | Join the matchmaking pool |
-| `/app/matchmaking/cancel` | none | Leave the matchmaking pool |
-| `/app/games/{gameId}/move` | plain text UCI string (e.g. `"e2e4"`) | Submit a move |
-| `/app/games/{gameId}/resign` | none | Resign the game |
-| `/app/games/{gameId}/draw/offer` | none | Offer a draw to the opponent |
-| `/app/games/{gameId}/draw/accept` | none | Accept the opponent's pending draw offer |
-| `/app/games/{gameId}/draw/decline` | none | Decline the opponent's pending draw offer |
+| Destination                        | Payload                               | Description                               |
+|------------------------------------|---------------------------------------|-------------------------------------------|
+| `/app/matchmaking/join`            | none                                  | Join the matchmaking pool                 |
+| `/app/matchmaking/cancel`          | none                                  | Leave the matchmaking pool                |
+| `/app/games/{gameId}/move`         | plain text UCI string (e.g. `"e2e4"`) | Submit a move                             |
+| `/app/games/{gameId}/resign`       | none                                  | Resign the game                           |
+| `/app/games/{gameId}/draw/offer`   | none                                  | Offer a draw to the opponent              |
+| `/app/games/{gameId}/draw/accept`  | none                                  | Accept the opponent's pending draw offer  |
+| `/app/games/{gameId}/draw/decline` | none                                  | Decline the opponent's pending draw offer |
 
 **Move submission stays a plain UCI string.** The server needs nothing else
 to process it, and request/response shapes are allowed to diverge — only the
@@ -347,12 +346,12 @@ buttons based on `pendingDrawOffer` from `/games/{id}/live` or from the
 
 ### 5.3 Server → Client Destinations
 
-| Destination | Payload | Description |
-|---|---|---|
-| `/user/queue/matchmaking` | JSON | Match found notification |
-| `/topic/games/{gameId}/moves` | JSON | Confirmed move broadcast |
-| `/topic/games/{gameId}/events` | JSON, discriminated by `type` | All other game lifecycle events |
-| `/user/queue/errors` | plain text | Server-side error for the current user |
+| Destination                    | Payload                       | Description                            |
+|--------------------------------|-------------------------------|----------------------------------------|
+| `/user/queue/matchmaking`      | JSON                          | Match found notification               |
+| `/topic/games/{gameId}/moves`  | JSON                          | Confirmed move broadcast               |
+| `/topic/games/{gameId}/events` | JSON, discriminated by `type` | All other game lifecycle events        |
+| `/user/queue/errors`           | plain text                    | Server-side error for the current user |
 
 #### Match Found — `/user/queue/matchmaking`
 
@@ -464,21 +463,21 @@ typed event.
 
 ### 6.1 `GameStatus` Enum
 
-| Value | Meaning |
-|---|---|
-| `ONGOING` | Game in progress |
-| `ABANDONED` | Reserved for future use |
-| `DRAW_STALEMATE` | Draw by stalemate |
+| Value                        | Meaning                           |
+|------------------------------|-----------------------------------|
+| `ONGOING`                    | Game in progress                  |
+| `ABANDONED`                  | Reserved for future use           |
+| `DRAW_STALEMATE`             | Draw by stalemate                 |
 | `DRAW_INSUFFICIENT_MATERIAL` | Draw — neither side can checkmate |
-| `DRAW_FIFTY_MOVE_RULE` | Draw by 50-move rule |
-| `DRAW_THREEFOLD_REPETITION` | Draw by repetition |
-| `DRAW_AGREEMENT` | Draw by mutual agreement |
-| `WON_WHITE_CHECKMATE` | White wins by checkmate |
-| `WON_BLACK_CHECKMATE` | Black wins by checkmate |
-| `WON_WHITE_TIMEOUT` | White wins on time |
-| `WON_BLACK_TIMEOUT` | Black wins on time |
-| `WON_WHITE_RESIGNATION` | White wins by resignation |
-| `WON_BLACK_RESIGNATION` | Black wins by resignation |
+| `DRAW_FIFTY_MOVE_RULE`       | Draw by 50-move rule              |
+| `DRAW_THREEFOLD_REPETITION`  | Draw by repetition                |
+| `DRAW_AGREEMENT`             | Draw by mutual agreement          |
+| `WON_WHITE_CHECKMATE`        | White wins by checkmate           |
+| `WON_BLACK_CHECKMATE`        | Black wins by checkmate           |
+| `WON_WHITE_TIMEOUT`          | White wins on time                |
+| `WON_BLACK_TIMEOUT`          | Black wins on time                |
+| `WON_WHITE_RESIGNATION`      | White wins by resignation         |
+| `WON_BLACK_RESIGNATION`      | Black wins by resignation         |
 
 ### 6.2 Move Format (UCI)
 
@@ -486,23 +485,23 @@ typed event.
 <from-square><to-square>[<promotion>]
 ```
 
-| Example | Meaning |
-|---|---|
-| `e2e4` | Pawn advance |
-| `e1g1` | White kingside castle |
-| `e8c8` | Black queenside castle |
-| `e7e8q` | Pawn promotes to queen |
+| Example   | Meaning                |
+|-----------|------------------------|
+| `e2e4`    | Pawn advance           |
+| `e1g1`    | White kingside castle  |
+| `e8c8`    | Black queenside castle |
+| `e7e8q`   | Pawn promotes to queen |
 
 Promotion characters: `q`, `r`, `b`, `n`.
 
 ### 6.3 Game Clock
 
-| Parameter | Value |
-|---|---|
-| Starting time per player | 3 minutes (`PT3M`) |
-| Increment per move | +5 seconds |
+| Parameter                | Value                  |
+|--------------------------|------------------------|
+| Starting time per player | 3 minutes (`PT3M`)     |
+| Increment per move       | +5 seconds             |
 | Timeout polling interval | 1 second (server-side) |
-| Clock authority | Server only |
+| Clock authority          | Server only            |
 
 Values returned by `GET /games/{id}/live` are adjusted for elapsed time as of
 the response — never negative (clamped to `PT0S`).
@@ -513,20 +512,20 @@ the response — never negative (clamped to `PT0S`).
 
 A summary of every deviation from the current implementation and why.
 
-| Change | Rationale |
-|---|---|
-| `/api/game/...` → `/api/v1/games/...` | Versioning for future breaking changes without disrupting existing clients; plural for REST collection convention |
-| `/status` → `/live`, `/history` folded into `GET /games/{id}` | "Status" collided semantically with HTTP status; `/live` clearly signals ephemeral Redis-backed data with a distinct lifecycle (`GAME_NOT_LIVE` vs `GAME_NOT_FOUND`) |
-| Error shape: flat `error`/`message` → nested `error: {code, message, details}` | `details` gives validation errors a home without inventing a second response shape |
-| Success responses drop top-level `message` | Redundant — `"Login Success"` with a 200 status says nothing the status code doesn't |
-| `AuthResponse` gains `tokenType`, `expiresAt`, `user` | Removes the frontend's `atob(token.split('.')[1])` JWT-decoding hack entirely |
-| New `GET /users/me` | Single source of truth for current user's profile, used by `AuthStore` instead of decoding tokens |
-| `/me/games` gains `limit`/`offset` + `page` metadata | Prevents the endpoint from becoming unbounded as users accumulate game history |
-| Single `/app/game/{id}/action` (string payload) → `/draw/offer`, `/draw/accept`, `/draw/decline`, `/resign` | Removes implicit state-dependent behavior; each endpoint is self-documenting and the frontend never has to guess what an action call will do |
-| `/event` + `/draw-offer` topics → single `/topic/games/{id}/events` with `type` discriminator | One subscription instead of two; `type` field prevents payload-vocabulary collisions between terminal (`GAME_OVER`) and non-terminal (`DRAW_OFFERED`, etc.) events |
-| New `DRAW_EXPIRED` event | Closes the gap where a stale draw-offer dialog could remain open past the 30-second TTL with no client-side signal |
-| `pendingDrawOffer` added to `/games/{id}/live` | Restores draw-offer UI state correctly after a page refresh |
-| Move broadcast → JSON `{ move, fen, timestamp }`; move *submission* stays plain UCI string | Broadcast is the highest-traffic channel and the natural home for a server-authoritative `fen` (desync detection) and `timestamp` (spectator timeline ordering). JSON is additive — future fields (`clock`, `ply`) cost nothing to add later. Submission stays a string because the server needs nothing extra from the client; request/response shape divergence is normal and not a "JSON-everywhere" violation. |
-| `timestamp` added to every `/events` payload | Consistent ordering key across `moves`, `events`, and the future `chat` topic — enables a unified spectator activity feed without per-topic special-casing |
-| Password minimum raised to 8 | 4 characters is not a meaningful security floor; 8 is a low-friction baseline that's still trivial for users to satisfy |
-| `GET /games/{id}` and `/live` open to any authenticated user | Intentional — required for the Watch/spectator feature. Not an authorization gap. |
+| Change                                                                                                      | Rationale                                                                                                                                                                                                                                                                                                                                                                                                           |
+|-------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `/api/game/...` → `/api/v1/games/...`                                                                       | Versioning for future breaking changes without disrupting existing clients; plural for REST collection convention                                                                                                                                                                                                                                                                                                   |
+| `/status` → `/live`, `/history` folded into `GET /games/{id}`                                               | "Status" collided semantically with HTTP status; `/live` clearly signals ephemeral Redis-backed data with a distinct lifecycle (`GAME_NOT_LIVE` vs `GAME_NOT_FOUND`)                                                                                                                                                                                                                                                |
+| Error shape: flat `error`/`message` → nested `error: {code, message, details}`                              | `details` gives validation errors a home without inventing a second response shape                                                                                                                                                                                                                                                                                                                                  |
+| Success responses drop top-level `message`                                                                  | Redundant — `"Login Success"` with a 200 status says nothing the status code doesn't                                                                                                                                                                                                                                                                                                                                |
+| `AuthResponse` gains `tokenType`, `expiresAt`, `user`                                                       | Removes the frontend's `atob(token.split('.')[1])` JWT-decoding hack entirely                                                                                                                                                                                                                                                                                                                                       |
+| New `GET /users/me`                                                                                         | Single source of truth for current user's profile, used by `AuthStore` instead of decoding tokens                                                                                                                                                                                                                                                                                                                   |
+| `/me/games` gains `limit`/`offset` + `page` metadata                                                        | Prevents the endpoint from becoming unbounded as users accumulate game history                                                                                                                                                                                                                                                                                                                                      |
+| Single `/app/game/{id}/action` (string payload) → `/draw/offer`, `/draw/accept`, `/draw/decline`, `/resign` | Removes implicit state-dependent behavior; each endpoint is self-documenting and the frontend never has to guess what an action call will do                                                                                                                                                                                                                                                                        |
+| `/event` + `/draw-offer` topics → single `/topic/games/{id}/events` with `type` discriminator               | One subscription instead of two; `type` field prevents payload-vocabulary collisions between terminal (`GAME_OVER`) and non-terminal (`DRAW_OFFERED`, etc.) events                                                                                                                                                                                                                                                  |
+| New `DRAW_EXPIRED` event                                                                                    | Closes the gap where a stale draw-offer dialog could remain open past the 30-second TTL with no client-side signal                                                                                                                                                                                                                                                                                                  |
+| `pendingDrawOffer` added to `/games/{id}/live`                                                              | Restores draw-offer UI state correctly after a page refresh                                                                                                                                                                                                                                                                                                                                                         |
+| Move broadcast → JSON `{ move, fen, timestamp }`; move *submission* stays plain UCI string                  | Broadcast is the highest-traffic channel and the natural home for a server-authoritative `fen` (de-sync detection) and `timestamp` (spectator timeline ordering). JSON is additive — future fields (`clock`, `ply`) cost nothing to add later. Submission stays a string because the server needs nothing extra from the client; request/response shape divergence is normal and not a "JSON-everywhere" violation. |
+| `timestamp` added to every `/events` payload                                                                | Consistent ordering key across `moves`, `events`, and the future `chat` topic — enables a unified spectator activity feed without per-topic special-casing                                                                                                                                                                                                                                                          |
+| Password minimum raised to 8                                                                                | 4 characters is not a meaningful security floor; 8 is a low-friction baseline that's still trivial for users to satisfy                                                                                                                                                                                                                                                                                             |
+| `GET /games/{id}` and `/live` open to any authenticated user                                                | Intentional — required for the Watch/spectator feature. Not an authorization gap.                                                                                                                                                                                                                                                                                                                                   |

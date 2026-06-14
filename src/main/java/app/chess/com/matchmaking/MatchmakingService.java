@@ -65,8 +65,8 @@ public class MatchmakingService {
             log.info("whiteNotification: {}", whiteNotification);
             log.info("blackNotification: {}", blackNotification);
 
-            simpMessagingTemplate.convertAndSendToUser(whitePlayer, "/queue/match-making", whiteNotification);
-            simpMessagingTemplate.convertAndSendToUser(blackPlayer, "/queue/match-making", blackNotification);
+            simpMessagingTemplate.convertAndSendToUser(whitePlayer, "/queue/matchmaking", whiteNotification);
+            simpMessagingTemplate.convertAndSendToUser(blackPlayer, "/queue/matchmaking", blackNotification);
         }
     }
 
